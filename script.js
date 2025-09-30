@@ -1,7 +1,8 @@
 ﻿// === Config ===
-const MODEL_NAME = "gemini-2.5-flash"; // modelo vigente en v1
-const API_KEY = "AIzaSyAI9lF9SVz_irAxLAKzD8X3YrDKZwOt5e8";     // SOLO pruebas; no subir a git
-const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1/models/" + MODEL_NAME + ":generateContent?key=" + encodeURIComponent(API_KEY);
+const MODEL_NAME = "gemini-2.5-flash"; // válido en v1
+const API_KEY = "AIzaSyAI9lF9SVz_irAxLAKzD8X3YrDKZwOt5e8";      // SOLO pruebas en front
+const API_ENDPOINT =
+  `https://generativelanguage.googleapis.com/v1/models/${MODEL_NAME}:generateContent?key=${encodeURIComponent(API_KEY)}`;
 
 // === UI refs ===
 const messageList = document.getElementById("message-list");
@@ -49,10 +50,11 @@ function hideTypingIndicator() {
 function typewriter(element, text, duration = 2000) {
   element.textContent = "";
   if (!text) return Promise.resolve();
+
   const content = String(text);
   const totalChars = content.length;
 
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const start = performance.now();
     function update(now) {
       const elapsed = now - start;
@@ -82,11 +84,13 @@ async function renderAIMessage(text) {
 async function fetchInventory() {
   const response = await fetch("php/disponible.php", {
     headers: { Accept: "application/json" },
-    cache: "no-store"
+    cache: "no-store",
   });
+
   if (!response.ok) {
     throw new Error(`Error al obtener inventario (${response.status})`);
   }
+
   const payload = await response.json();
   if (!payload.success) {
     throw new Error(payload.error || "Respuesta inválida desde disponible.php");
@@ -106,21 +110,17 @@ function normalizeText(text) {
 function getKeywords(message) {
   return normalizeText(message)
     .split(/[^a-z0-9]+/)
-    .filter(word => word.length > 3);
+    .filter((word) => word.length > 3);
 }
 
 function selectRelevant(items, query) {
   const keywords = getKeywords(query);
   const hasKeywords = keywords.length > 0;
 
-  const ranked = items.map(item => {
-    const haystack = normalizeText([
-      item.articulo,
-      item.variedad,
-      item.cultivo,
-      item.ubicacion,
-      item.vuelo
-    ].join(" "));
+  const ranked = items.map((item) => {
+    const haystack = normalizeText(
+      [item.articulo, item.variedad, item.cultivo, item.ubicacion, item.vuelo].join(" ")
+    );
 
     let score = 0;
     if (hasKeywords) {
@@ -139,31 +139,34 @@ function selectRelevant(items, query) {
 
   ranked.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    const outletA = Number.parseInt(a.item?.es_outlet, 10) || 0;
-    const outletB = Number.parseInt(b.item?.es_outlet, 10) || 0;
+    const outletA = Number.parseInt(a.item.es_outlet, 10) || 0;
+    const outletB = Number.parseInt(b.item.es_outlet, 10) || 0;
     if (outletA !== outletB) return outletA - outletB;
     return (b.fechaTime || 0) - (a.fechaTime || 0);
   });
 
-  return ranked.slice(0, 15).map(entry => entry.item);
+  return ranked.slice(0, 15).map((r) => r.item);
 }
 
 // === Prompt ===
 function buildPrompt({ userMessage, relevantItems, inventoryCount, history }) {
   const historySection = history
     .slice(-6)
-    .map(entry => `${entry.role === "user" ? "Cliente" : "Asistente"}: ${entry.content}`)
+    .map((entry) => `${entry.role === "user" ? "Cliente" : "Asistente"}: ${entry.content}`)
     .join("\n");
 
-  const inventorySection = relevantItems.length > 0
-    ? relevantItems.map(item => {
-        const outlet = String(item.es_outlet) === "1" ? "Sí" : "No";
-        const reservado = Number.parseFloat(item.reservado) || 0;
-        const disponible = Number.parseFloat(item.disponible) || 0;
-        const cajas = Number.parseFloat(item.cajas) || 0;
-        return `- Producto: ${item.articulo} | Variedad: ${item.variedad} | Cultivo: ${item.cultivo} | Fecha: ${item.fecha || "sin fecha"} | Ubicación: ${item.ubicacion || "sin ubicación"} | Vuelo: ${item.vuelo || "sin vuelo"} | Disponible: ${disponible} | Cajas: ${cajas} | Reservado: ${reservado} | Outlet: ${outlet} | Caducidad: ${item.caducidad || ""} | Tiempo outlet: ${item.tiempo_outlet || ""}`;
-      }).join("\n")
-    : "(No se encontraron registros relevantes con disponibilidad positiva.)";
+  const inventorySection =
+    relevantItems.length > 0
+      ? relevantItems
+          .map((item) => {
+            const outlet = String(item.es_outlet) === "1" ? "Sí" : "No";
+            const reservado = Number.parseFloat(item.reservado) || 0;
+            const disponible = Number.parseFloat(item.disponible) || 0;
+            const cajas = Number.parseFloat(item.cajas) || 0;
+            return `- Producto: ${item.articulo} | Variedad: ${item.variedad} | Cultivo: ${item.cultivo} | Fecha: ${item.fecha || "sin fecha"} | Ubicación: ${item.ubicacion || "sin ubicación"} | Vuelo: ${item.vuelo || "sin vuelo"} | Disponible: ${disponible} | Cajas: ${cajas} | Reservado: ${reservado} | Outlet: ${outlet} | Caducidad: ${item.caducidad || ""} | Tiempo outlet: ${item.tiempo_outlet || ""}`;
+          })
+          .join("\n")
+      : "(No se encontraron registros relevantes con disponibilidad positiva.)";
 
   return `Actúa como un asistente comercial experto en flor cortada que responde en español.
 Tu objetivo es recomendar productos disponibles y explicar claramente por qué encajan con la solicitud del cliente.
@@ -194,8 +197,8 @@ Instrucciones para la respuesta:
 function extractText(data) {
   if (!data) return "";
   const candidates = Array.isArray(data.candidates) ? data.candidates : [];
-  for (const cand of candidates) {
-    const parts = cand?.content?.parts;
+  for (const candidate of candidates) {
+    const parts = candidate?.content?.parts;
     if (!Array.isArray(parts)) continue;
     for (const part of parts) {
       if (typeof part?.text === "string" && part.text.trim()) {
@@ -206,21 +209,21 @@ function extractText(data) {
   return "";
 }
 
-// === Call REST (fetch) ===
+// === Llamada REST ===
 async function callModel(prompt) {
   const body = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }]
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
   };
 
   const response = await fetch(API_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Error al generar respuesta (${response.status}). ${detail}`);
+    const errorDetail = await response.text().catch(() => "");
+    throw new Error(`Error al generar respuesta (${response.status}). ${errorDetail}`);
   }
 
   return response.json();
@@ -238,11 +241,11 @@ async function generateResponse(userMessage) {
     userMessage,
     relevantItems,
     inventoryCount: inventory.count || 0,
-    history: conversationHistory
+    history: conversationHistory,
   });
 
   const result = await callModel(prompt);
-  const reply = (extractText(result).trim()) || "No he podido generar una respuesta en este momento.";
+  const reply = extractText(result).trim() || "No he podido generar una respuesta en este momento.";
 
   hideTypingIndicator();
   conversationHistory.push({ role: "assistant", content: reply });
@@ -270,7 +273,8 @@ form.addEventListener("submit", async (event) => {
     console.error(error);
     hideTypingIndicator();
     setStatus("");
-    const fallback = "No he podido conectarme con la IA o con el inventario. Inténtalo nuevamente en unos minutos.";
+    const fallback =
+      "No he podido conectarme con la IA o con el inventario. Inténtalo nuevamente en unos minutos.";
     conversationHistory.push({ role: "assistant", content: fallback });
     await renderAIMessage(fallback);
   } finally {
@@ -281,7 +285,21 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+// === Envío con Enter (sin Shift) ===
+input.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    if (submitButton.disabled) return;
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+    } else {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
+  }
+});
+
 // === Mensaje de bienvenida ===
-const greeting = "Hola, soy tu asistente comercial IA. Cuéntame qué necesita tu cliente y revisaré el inventario para ti.";
+const greeting =
+  "Hola, soy tu asistente comercial IA. Cuéntame qué necesita tu cliente y revisaré el inventario para ti.";
 conversationHistory.push({ role: "assistant", content: greeting });
 renderAIMessage(greeting);

@@ -1,14 +1,11 @@
 <?php
-//$host = "localhost";
 $db = "demanda";
 $user = "root";
 $host = "localhost";
 $pass = "";
 
-// Principal (nombre estándar)
 $conn = new mysqli($host, $user, $pass, $db);
 
-// Alias para compatibilidad
 $mysqli = $conn;
 
 if ($conn->connect_error) {
